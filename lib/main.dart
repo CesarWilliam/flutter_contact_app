@@ -9,7 +9,7 @@ void main() {
   }
   else {
     runApp(AndroidApp()); 
-  }
+  } 
 }
 
 // void main() => runApp(IOSApp());

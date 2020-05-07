@@ -1,11 +1,92 @@
 import 'package:contacts/android/views/address.view.dart';
 import 'package:contacts/android/views/editor-contact.view.dart';
+import 'package:contacts/android/views/home.view.dart';
+import 'package:contacts/android/views/loading.view.dart';
 import 'package:contacts/models/contact.model.dart';
+import 'package:contacts/repositories/contact.repository.dart';
+import 'package:contacts/shared/widgets/contact-datails-description.widget.dart';
+import 'package:contacts/shared/widgets/contact-datails-image.widget.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; // pacote de interação com os aplicativos
 
-class DetailsView extends StatelessWidget {
+class DetailsView extends StatefulWidget {
+  final int id;
+
+  DetailsView({
+    @required this.id
+  });
+
+  @override
+  _DetailsViewState createState() => _DetailsViewState();
+}
+
+class _DetailsViewState extends State<DetailsView> {
+  final _repository = new ContactRepository();
+
+  onDelete() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return new AlertDialog(
+          title: new Text("Exclusão de Contato"),
+          content: new Text("Deseja excluir este contato?"),
+          actions: <Widget>[
+            FlatButton(
+              child: Text("Cancelar"),
+              onPressed: () {
+                Navigator.pop(context);
+              } 
+            ),
+            FlatButton(
+              child: Text("Excluir"),
+              onPressed: delete 
+            )
+          ],
+        );
+      }
+    );
+  }
+
+  delete() {
+    _repository.delete(widget.id)
+    .then((_) {
+      onSucsess();
+    })
+    .catchError((err) {
+      onError(err);
+    });
+  }
+
+  onSucsess() {
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => HomeView()
+      ),
+    );
+  }
+
+  onError(err) {
+    print(err);
+  }
+
   @override
   Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: _repository.getContact(widget.id),
+      builder: (ctx, snp){
+        if(snp.hasData) {
+          ContactModel contact = snp.data;
+          return page(context, contact);
+        }
+        else {
+          return LoadingView();
+        }
+      },
+    );
+  }
+
+  Widget page(BuildContext context, ContactModel model) {
     return Scaffold(
       appBar: AppBar(
         title: Text("Contato"),
@@ -19,48 +100,16 @@ class DetailsView extends StatelessWidget {
             height: 10,
             width: double.infinity, 
           ),
-          Container(
-            width: 200,
-            height: 200,
-            padding: EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(200)
-            ),
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(100),
-                image: DecorationImage(
-                  image: NetworkImage("https://avatars3.githubusercontent.com/u/38091277?s=400&u=840448783fb078d4e087df79c3e4f8902c45756b&v=4")
-                ),
-              ),
-            ),
+          ContactDetailsImage(
+            image: model.image
           ),
           SizedBox(
             height: 10
           ),
-          Text(
-            "Will",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold
-            ),
-          ),
-          Text(
-            "00 0000-0000",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w400
-            ),
-          ),
-          Text(
-            "will.roc@hotmail.com",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w400
-            ),
+          ContactDetailsDescription(
+            name: model.name, 
+            phone: model.phone, 
+            email: model.email
           ),
           SizedBox(
             height: 20,
@@ -69,7 +118,9 @@ class DetailsView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: <Widget>[
               FlatButton(
-                onPressed: () {}, 
+                onPressed: () {
+                  launch("tel://${model.phone}"); // abre o aplicativo de ligação do celular
+                }, 
                 color: Theme.of(context).primaryColor,
                 shape: CircleBorder(
                   side: BorderSide.none,
@@ -80,7 +131,9 @@ class DetailsView extends StatelessWidget {
                 ),
               ),
               FlatButton(
-                onPressed: () {}, 
+                onPressed: () {
+                  launch("mailto://${model.email}"); // abre o aplicativo de e-mail do celular
+                }, 
                 color: Theme.of(context).primaryColor,
                 shape: CircleBorder(
                   side: BorderSide.none,
@@ -118,13 +171,13 @@ class DetailsView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget> [
                 Text(
-                  "Rua x",
+                  model.addressLine1 ?? "Nenhum endereço cadastrado",
                   style: TextStyle(
                     fontSize: 12
                   ),
                 ),
                 Text(
-                  "São Paulo/SP",
+                  model.addressLine2 ?? "",
                   style: TextStyle(
                     fontSize: 12
                   ),
@@ -147,6 +200,28 @@ class DetailsView extends StatelessWidget {
               ),
             ),
           ),
+          SizedBox(
+            height: 10
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 15,
+            ),
+            child: Container(
+              width: double.infinity,
+              height: 50,
+              color: Color(0xFFFF0000),
+              child: FlatButton(
+                child: Text(
+                  "Excluir Contato",
+                  style: TextStyle(
+                    color: Theme.of(context).accentColor
+                  ),
+                ),
+                onPressed: onDelete,
+              ),
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -155,12 +230,7 @@ class DetailsView extends StatelessWidget {
             context, 
             MaterialPageRoute(
               builder: (context) => EditorContactView(
-                model: ContactModel(
-                  id: 1,
-                  name: "Will",
-                  email: "will.roc@hotmail.com",
-                  phone: "00 0000-0000"
-                ),
+                model: model,
               )
             ),
           );

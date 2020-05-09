@@ -1,13 +1,16 @@
 import 'package:contacts/android/views/address.view.dart';
+import 'package:contacts/android/views/crop-picture.view.dart';
 import 'package:contacts/android/views/editor-contact.view.dart';
 import 'package:contacts/android/views/home.view.dart';
 import 'package:contacts/android/views/loading.view.dart';
+import 'package:contacts/android/views/take-picture.view.dart';
 import 'package:contacts/models/contact.model.dart';
 import 'package:contacts/repositories/contact.repository.dart';
 import 'package:contacts/shared/widgets/contact-datails-description.widget.dart';
 import 'package:contacts/shared/widgets/contact-datails-image.widget.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // pacote de interação com os aplicativos
+import 'package:camera/camera.dart';
 
 class DetailsView extends StatefulWidget {
   final int id;
@@ -50,14 +53,14 @@ class _DetailsViewState extends State<DetailsView> {
   delete() {
     _repository.delete(widget.id)
     .then((_) {
-      onSucsess();
+      onSuccess();
     })
     .catchError((err) {
       onError(err);
     });
   }
 
-  onSucsess() {
+  onSuccess() {
     Navigator.push(
       context, 
       MaterialPageRoute(
@@ -68,6 +71,44 @@ class _DetailsViewState extends State<DetailsView> {
 
   onError(err) {
     print(err);
+  }
+
+  takePicture() async {
+    final cameras = await availableCameras();
+    final firstCamera = cameras.first;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TakePictureView(
+          camera: firstCamera // selecion a primeira camera disponível
+        ),
+      ),
+    ).then((imagePath) { // retorna o caminho da img
+      cropPicture(imagePath); // no retorno chama o crocPicture, que vai para a página de cropPicture
+    });
+  }
+
+  cropPicture(path) {
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => CropPictureView(
+          path: path
+        )
+      ),
+    ).then((imagePath) { // retorna o caminho da img recortada 
+      updateImage(imagePath);
+    });
+  }
+
+  updateImage(path) async {
+    _repository.updateImage(
+      widget.id, 
+      path
+    ).then((_) {
+      setState(() {});
+    });
   }
 
   @override
@@ -144,7 +185,7 @@ class _DetailsViewState extends State<DetailsView> {
                 ),
               ),
               FlatButton(
-                onPressed: () {}, 
+                onPressed: takePicture,  
                 color: Theme.of(context).primaryColor,
                 shape: CircleBorder(
                   side: BorderSide.none,

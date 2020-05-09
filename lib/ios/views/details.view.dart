@@ -1,172 +1,225 @@
 import 'package:contacts/ios/views/address.view.dart';
 import 'package:contacts/ios/views/editor-contact.view.dart';
-import 'package:contacts/ios/styles.dart';
+import 'package:contacts/ios/views/home.view.dart';
+import 'package:contacts/ios/views/loading.view.dart';
 import 'package:contacts/models/contact.model.dart';
+import 'package:contacts/repositories/contact.repository.dart';
+import 'package:contacts/shared/widgets/contact-datails-description.widget.dart';
+import 'package:contacts/shared/widgets/contact-datails-image.widget.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class DetailsView extends StatelessWidget {
+class DetailsView extends StatefulWidget {
+  final int id;
+
+  DetailsView({
+    @required this.id
+  });
+
+  @override
+  _DetailsViewState createState() => _DetailsViewState();
+}
+
+class _DetailsViewState extends State<DetailsView> {
+  final _repository = new ContactRepository();
+
+  onDelete() {
+    showCupertinoDialog(
+      context: null, 
+      builder: (ctx) {
+        return new CupertinoAlertDialog(
+          title: new Text("Exclusão de Contato"),
+          content: new Text("Deseja excluir este contato?"),
+          actions: <Widget>[
+            CupertinoButton(
+              child: Text("Cancelar"), 
+              onPressed: (){
+                Navigator.pop(context);
+              }
+            ),
+            CupertinoButton(
+              child: Text("Excluir"), 
+              onPressed: delete
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  delete() {
+    _repository.delete(widget.id)
+    .then((_) {
+      onSuccess();
+    })
+    .catchError((err) {
+      onError(err);
+    });
+  }
+
+  onSuccess() {
+    Navigator.push(
+      context, 
+      CupertinoPageRoute(
+        builder: (context) => HomeView()
+      ),
+    );
+  }
+
+  onError(err) {
+    print(err);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      child: CustomScrollView(
-        slivers: <Widget> [
-          CupertinoSliverNavigationBar(
-            largeTitle: Text("Contato"),
-            trailing: CupertinoButton(
-              child: Icon(
-                CupertinoIcons.pen,
-              ),
-              onPressed: (){
-                Navigator.push(
-                  context, 
-                  CupertinoPageRoute(
-                    builder: (context) => EditorContactView(
-                      model: ContactModel(
-                        id: 1,
-                        name: "Will",
-                        email: "will.roc@hotmail.com",
-                        phone: "00 0000-0000"
+    return FutureBuilder(
+      future: _repository.getContact(widget.id),
+      builder: (ctx, snp) {
+        if (snp.hasData) {
+          ContactModel contact = snp.data;
+
+          return CupertinoPageScaffold(
+            child: CustomScrollView(
+              slivers: <Widget>[
+                CupertinoSliverNavigationBar(
+                  largeTitle: Text("Contato"),
+                  trailing: GestureDetector(
+                    child: Icon(
+                      CupertinoIcons.pen
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context, 
+                        CupertinoPageRoute(
+                          builder: (context) => EditorContactView(
+                            model: contact,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                SliverFillRemaining(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 10,
+                        width: double.infinity
                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          SliverFillRemaining(
-            child: Column(
-              children: <Widget>[
-                SizedBox(
-                  height: 10,
-                  width: double.infinity
-                ),
-                Container(
-                  width: 200,
-                  height: 200,
-                  padding: EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(200)
-                  ),
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(100),
-                      image: DecorationImage(
-                        image: NetworkImage("https://avatars3.githubusercontent.com/u/38091277?s=400&u=840448783fb078d4e087df79c3e4f8902c45756b&v=4")
+                      ContactDetailsImage(
+                        image: contact.image
                       ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 10,
-                ),
-                Text(
-                  "Will",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold
-                  ),
-                ),
-                Text(
-                  "00 0000-0000",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400
-                  ),
-                ),
-                Text(
-                  "will.roc@hotmail.com",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400
-                  ),
-                ),
-                SizedBox(
-                  height: 20
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: <Widget>[
-                    CupertinoButton(
-                      child: Icon(
-                        CupertinoIcons.phone
-                      ), 
-                      onPressed: () {}
-                    ),
-                    CupertinoButton(
-                      child: Icon(
-                        CupertinoIcons.mail
-                      ), 
-                      onPressed: () {}
-                    ),
-                    CupertinoButton(
-                      child: Icon(
-                        CupertinoIcons.photo_camera
-                      ), 
-                      onPressed: () {}
-                    ),
-                  ],
-                ),
-                SizedBox(
-                  height: 20
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      SizedBox(
+                        height: 10,
+                      ),
+                      ContactDetailsDescription(
+                        name: contact.name, 
+                        phone: contact.phone, 
+                        email: contact.email
+                      ),
+                      SizedBox(
+                        height: 20,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: <Widget>[
+                          CupertinoButton(
+                            onPressed: () {
+                              launch("tel://${contact.phone}");
+                            },
+                            child: Icon(
+                              CupertinoIcons.phone
+                            ), 
+                          ),
+                          CupertinoButton(
+                            onPressed: () {
+                              launch("mailto://${contact.email}");
+                            },
+                            child: Icon(
+                              CupertinoIcons.mail
+                            ), 
+                          ),
+                          CupertinoButton(
+                            onPressed: () {},
+                            child: Icon(
+                              CupertinoIcons.photo_camera
+                            ), 
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        height: 20,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Row(
                           children: <Widget>[
-                            SizedBox(
-                              width: double.infinity,
-                            ),
-                            Text(
-                              "Endereço",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  SizedBox(
+                                    width: double.infinity,
+                                  ),
+                                  Text(
+                                    "Endereço",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16
+                                    ),
+                                  ),
+                                  Text(
+                                    contact.addressLine1 ?? "Nenhum endereço cadastrado",
+                                    style: TextStyle(
+                                      fontSize: 12
+                                    ),
+                                  ),
+                                  Text(
+                                    contact.addressLine2 ?? "",
+                                    style: TextStyle(
+                                      fontSize: 12
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            Text(
-                              "Rua X",
-                              style: TextStyle(
-                                fontSize: 12
-                              ),
-                            ),
-                            Text(
-                              "Rua Y/SP",
-                              style: TextStyle(
-                                fontSize: 12
-                              ),
+                            CupertinoButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context, 
+                                  CupertinoPageRoute(
+                                    builder: (context) => AddressView()
+                                  ),
+                                );
+                              },
+                              child: Icon(
+                                CupertinoIcons.location
+                              ), 
                             ),
                           ],
                         ),
                       ),
-                      CupertinoButton(
-                        child: Icon(
-                          CupertinoIcons.location
+                      SizedBox(
+                        height: 20,
+                      ),
+                      CupertinoButton.filled(
+                        child: Text(
+                          "Excluir Contato"
                         ), 
-                        onPressed: () {
-                          Navigator.push(
-                            context, 
-                            CupertinoPageRoute(
-                              builder: (context) => AddressView(),
-                            ),
-                          );
-                        },
+                        onPressed: onDelete
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+          );
+        }
+        else {
+          return LoadingView();
+        }
+      },
     );
   }
 }

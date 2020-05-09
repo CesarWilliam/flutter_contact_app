@@ -1,10 +1,84 @@
+import 'package:contacts/ios/views/home.view.dart';
 import 'package:contacts/models/contact.model.dart';
+import 'package:contacts/repositories/contact.repository.dart';
 import 'package:flutter/cupertino.dart';
 
-class EditorContactView extends StatelessWidget {
+class EditorContactView extends StatefulWidget {
   final ContactModel model;
 
   EditorContactView({this.model});
+
+  @override
+  _EditorContactViewState createState() => _EditorContactViewState();
+}
+
+class _EditorContactViewState extends State<EditorContactView> {
+  final _formKey = new GlobalKey<FormState>();
+  final _repository = ContactRepository();
+
+  onSubmit() {
+    if(!_formKey.currentState.validate()) {
+      return;
+    }
+
+    _formKey.currentState.save();
+
+    if(widget.model.id == 0) {
+      create();
+    }
+    else {
+      update();
+    }
+  }
+
+  create() {
+    widget.model.id = null; // passando o id nulo para o SQlite criar um auto incremento no id
+    widget.model.image = null;
+
+    _repository.create(widget.model)
+    .then((_) {
+      onSuccess();
+    }).catchError((_) {
+      onError();
+    });
+  }
+
+  update() {
+    _repository.update(widget.model).then((_) {
+      onSuccess();
+    }).catchError((_) {
+      onError();
+    });
+  }
+
+  onSuccess() {
+    Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => HomeView()
+      ),
+    );
+  }
+
+  onError() {
+    showCupertinoDialog(
+      context: context, 
+      builder: (ctx) {
+        return new CupertinoAlertDialog(
+          title: new Text("Falha na operação"),
+          content: new Text("Ops, parece que algo deu errado"),
+          actions: <Widget>[
+            CupertinoButton(
+              child: Text("Ok"), 
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      }
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,28 +86,44 @@ class EditorContactView extends StatelessWidget {
       child: CustomScrollView(
         slivers: <Widget>[
           CupertinoSliverNavigationBar(
-            largeTitle: model == null ? Text("Novo contato") : Text("Editar contato"),
+            largeTitle: widget.model.id == 0 
+              ? Text("Novo contato") 
+              : Text("Editar contato"),
           ),
           SliverFillRemaining(
             child: Padding(
               padding: EdgeInsets.all(20),
               child: Form(
+                key: _formKey,
                 child: Column(
                   children: <Widget> [
                     CupertinoTextField(
-                      placeholder: model?.name ?? "Nome",
+                      placeholder: widget.model?.name ?? "Nome",
+                      textCapitalization: TextCapitalization.words,
+                      keyboardType: TextInputType.text,
+                      onChanged: (val) {
+                        widget.model.name = val;
+                      },
                     ),
                     SizedBox(
                       height: 20,
                     ),
                     CupertinoTextField(
-                      placeholder: model?.phone ?? "Telefone",
+                      placeholder: widget.model?.phone ?? "Telefone",
+                      keyboardType: TextInputType.number,
+                      onChanged: (val) {
+                        widget.model.phone = val;
+                      },
                     ),
                     SizedBox(
                       height: 20,
                     ),
                     CupertinoTextField(
-                      placeholder: model?.email ?? "E-mail",
+                      placeholder: widget.model?.email ?? "E-mail",
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: (val) {
+                        widget.model.email = val;
+                      },
                     ),
                     SizedBox(
                       height: 20,
@@ -45,7 +135,7 @@ class EditorContactView extends StatelessWidget {
                         child: Text(
                           "Salvar"
                         ), 
-                        onPressed: () {}
+                        onPressed: onSubmit
                       ),
                     ),
                   ],
